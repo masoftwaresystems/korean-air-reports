@@ -4,9 +4,12 @@ var express = require('express'),
     router = express.Router(),
     passport = require('passport'),
     Account = require('../models/account'),
+    Hazard = require('../models/hazard'),
+    SCRS = require('../models/scrs'),
     nodemailer = require('nodemailer'),
     smtpTransport = require('nodemailer-smtp-transport'),
     config = require('../cfg'),
+    pkg =  require('../package.json'),
     transporter;
 
 if (config.email && config.email.enabled) {
@@ -44,6 +47,17 @@ function getReqBody (req) {
     return body;
 }
 
+function getReqBodyData (req) {
+    var data = JSON.parse(req.body),
+        N = 10,
+        token = Array(N+1).join((Math.random().toString(36)+'00000000000000000').slice(2, 18)).slice(0, N),
+        hazard;
+
+    data.controlNo = token;
+
+    return data;
+}
+
 /**
  * Sends an email to a user so they can retreive their password
  */ 
@@ -64,7 +78,8 @@ router.get('/_hc', function (req, res, next) {
     res.json({
         status: 200,
         email: config.email,
-        name: 'authenticate'
+        name: pkg.name,
+        mongo: config.mongo
     });
 });
 
@@ -175,5 +190,52 @@ router.post('/reset', function (req, res) {
     });
 });
 
+router.post('/hazard/create', function (req, res, next) {
+    var data = getReqBodyData(req),
+        hazard = new Hazard(data),
+        obj;
+
+    hazard.save(function (err) {
+        if (err) {
+            console.log({
+                created: false,
+                message: 'hazard create error'
+            });
+            return next(err);
+        } else {
+            obj = hazard.toJSON();
+            res.json({
+                controlNo: obj.controlNo,
+                created: true,
+                createdAt: obj.createdAt,
+                message: 'hazard created'
+            });
+        }
+    });
+});
+
+router.post('/scrs/create', function (req, res, next) {
+    var data = getReqBodyData(req),
+        scrs = new SCRS(data),
+        obj;
+
+    scrs.save(function (err) {
+        if (err) {
+            console.log({
+                created: false,
+                message: 'scrs create error'
+            });
+            return next(err);
+        } else {
+            obj = scrs.toJSON();
+            res.json({
+                controlNo: obj.controlNo,
+                created: true,
+                createdAt: obj.createdAt,
+                message: 'scrs created'
+            });
+        }
+    });
+});
 
 module.exports = router;
