@@ -1,0 +1,29 @@
+{
+ "name": "korean-air-reports",
+ "description": "Incident reports for Korean Air",
+ "version": "0.0.11",
+ "license": "(MIT)",
+ "main": "index.js",
+ "dependencies": {
+   "express": "4.13.3",
+   "express-session": "1.11.3",
+   "body-parser": "1.14.1",
+   "cookie-parser": "1.3.5",
+   "mongoose": "4.0.7",
+   "mongodb-uri": "0.9.7",
+   "morgan": "1.6.1",
+   "nodemailer": "1.4.0",
+   "nodemailer-smtp-transport": "1.0.3",
+   "passport": "0.3.0",
+   "passport-local": "1.0.0",
+   "passport-local-mongoose": "1.0.1",
+   "simple-bodyparser": "0.0.4"
+ },
+ "repository": {
+     "type": "git",
+     "url": "https://github.com/masoftwaresystems/korean-air-reports"
+ },
+ "scripts": {
+     "start": "node index.js"
+ }
+}
