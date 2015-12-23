@@ -11,11 +11,10 @@ module.exports = {
             }
         },
         sendMail: {
-            from: 'pass@copaseguridad.com',
-            replyTo: 'pass@copaair.com',
-            bcc: 'mike.aaron@gmail.com',
-            subject: 'Copaair Portal account',
-            loginUrl: 'http://www.copaseguridad.com/portal/site/en/login.html'
+            from: 'support@masoftwaresystems.com',
+            replyTo: 'support@copaair.com',
+            bcc: 'form.submissions@masoftwaresystems.com',
+            subject: 'Korean Air report submission'
         }
     },
     mongo: process.env.MONGO_URL || 'mongodb://korean:EntranceGranted1234@ds035485.mongolab.com:35485/korean-air-reports',

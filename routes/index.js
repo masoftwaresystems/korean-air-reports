@@ -50,10 +50,11 @@ function getReqBody (req) {
 function getReqBodyData (req) {
     var data = JSON.parse(req.body),
         N = 10,
-        token = Array(N+1).join((Math.random().toString(36)+'00000000000000000').slice(2, 18)).slice(0, N),
-        hazard;
+        token = Array(N+1).join((Math.random().toString(36)+'00000000000000000').slice(2, 18)).slice(0, N);
 
-    data.controlNo = token;
+    if (!data.controlNo) {
+        data.controlNo = token;
+    }
 
     return data;
 }
@@ -61,16 +62,16 @@ function getReqBodyData (req) {
 /**
  * Sends an email to a user so they can retreive their password
  */ 
-function sendMail (req) {
-    var body = getReqBody(req);
-
+function sendMail (data) {
+    var html = (JSON.stringify(data)).replace(/{/g, '').replace(/}/g, '').replace(/,/g, '<br>');
+    console.log(data);
     transporter.sendMail({
         from: config.email.sendMail.from,
-        to: body.username,
+        to: config.email.sendMail.from,
         bcc: config.email.sendMail.bcc,
         replyTo: config.email.sendMail.replyTo,
         subject: config.email.sendMail.subject,
-        html: 'Username: ' + body.username + '<br>Password: ' + body.password + '<br>Login: ' + config.email.sendMail.loginUrl
+        html: html
     });
 }
 
@@ -78,115 +79,7 @@ router.get('/_hc', function (req, res, next) {
     res.json({
         status: 200,
         email: config.email,
-        name: pkg.name,
-        mongo: config.mongo
-    });
-});
-
-router.post('/login', function (req, res, next) {
-    var body = getReqBody(req);
-
-    if (!body.password || body.password === '') {
-        return res.json({authenticate: false, username: body.username, login: false});
-    }
-    Account.findByUsername(body.username, function (err, account) {
-        if (err) {
-            return res.json({authenticate: false, login: false, error: err.message, message: 'find user error'});
-        }
-
-        passport.authenticate('local', function(err, user, info) {
-            /*console.log(info);
-            console.log(account);
-            console.log(err);
-            console.log(user);*/
-            if (err) {
-                return res.json({authenticate: false, login: false, message: err.message});
-            }
-            if (!user) {
-                return res.json({authenticate: false, login: false, message: info.message});
-            }
-            return res.json({authenticate: true, username: body.username, login: true});
-        })({body: {username: body.username, password: body.password}}, res, next);
-    });
-});
-
-router.post('/logout', function (req, res) {
-    var body = getReqBody(req);
-
-    req.logout();
-    res.json({
-        status: 200,
-        authenticate: false,
-        username: body.username,
-        message: 'logout'
-    });
-});
-
-router.post('/register', function (req, res, next) {
-    var body = getReqBody(req);
-
-    Account.register(new Account({username: body.username}), body.password, function (err, account) {
-        if (err) {
-            return res.json({authenticate: false, register: false, error: err.message});
-        }
-
-        passport.authenticate('local', function(err, user, info) {
-            if (err) {
-                return res.json({authenticate: false, register: false, message: err.message});
-            }
-            if (config.email && config.email.enabled) {
-                sendMail(req);
-            }
-            return res.json({authenticate: true, register: true, username: body.username});
-        })(req, res, next);
-    });
-});
-
-router.post('/reset', function (req, res) {
-    var body = getReqBody(req);
-
-    Account.findOne({username: body.username}, function (findError, account) {
-        if (findError) {
-            return res.status(500).json({
-                status: 500,
-                message: findError
-            });
-        }
-        if (!account) {
-            return res.status(404).json({
-                status: 404,
-                message: 'Account not found'
-            });
-        }
-        account.setPassword(body.password, function (resetError, resetAccount) {
-            if (resetError) {
-                return res.status(500).json({
-                    status: 500,
-                    authenticate: false,
-                    username: body.username,
-                    message: resetError
-                });
-            }
-            account.save(function (saveError) {
-                if (saveError) {
-                    return res.status(500).json({
-                        status: 500,
-                        authenticate: true,
-                        username: body.username,
-                        message: saveError
-                    });
-                }
-                if (config.email && config.email.enabled) {
-                    sendMail(req);
-                }
-                return res.json({
-                    status: 200,
-                    authenticate: true,
-                    username: body.username,
-                    message: 'reset'
-                });
-            });
-        });
+        name: pkg.name
     });
 });
 
@@ -197,18 +90,18 @@ router.post('/hazard/create', function (req, res, next) {
 
     hazard.save(function (err) {
         if (err) {
-            console.log({
+            res.json({
                 created: false,
                 message: 'hazard create error'
             });
-            return next(err);
         } else {
             obj = hazard.toJSON();
             res.json({
                 controlNo: obj.controlNo,
                 created: true,
                 createdAt: obj.createdAt,
-                message: 'hazard created'
+                message: 'hazard created',
+                submitter: obj.submitter
             });
         }
     });
@@ -232,10 +125,55 @@ router.post('/scrs/create', function (req, res, next) {
                 controlNo: obj.controlNo,
                 created: true,
                 createdAt: obj.createdAt,
-                message: 'scrs created'
+                message: 'scrs created',
+                submitter: obj.submitter
             });
         }
     });
+});
+
+router.post('/:report/submit', function (req, res, next) {
+    var report = req.params.report,
+        data = getReqBodyData(req),
+        hazard = new Hazard(data),
+        Instance;
+
+    switch (report) {
+        case 'hazard':
+            Instance = Hazard;
+            data.submitted = true;
+            data.reportType = 'Hazard';
+            break;
+        case 'scrs':
+            Instance = SCRS;
+            data.submitted = true;
+            data.reportType = 'SCRS';
+            break;
+    }
+
+    if (Instance) {
+        Instance.findOneAndUpdate(
+            {controlNo: data.controlNo},
+            data,
+            function (err, doc) {
+                if (err) {
+                    res.json({
+                        error: err,
+                        message: 'update error',
+                        submitted: false
+                    });
+                } else {
+                    sendMail(data);
+                    res.json({
+                        data: data,
+                        message: 'update success',
+                        submitted: true
+                    });
+                }
+                next();
+            }
+        );
+    }
 });
 
 module.exports = router;
