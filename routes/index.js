@@ -64,7 +64,7 @@ function getReqBodyData (req) {
  */ 
 function sendMail (data) {
     var html = (JSON.stringify(data)).replace(/{/g, '').replace(/}/g, '').replace(/,/g, '<br>');
-    console.log(data);
+    // console.log(data);
     transporter.sendMail({
         from: config.email.sendMail.from,
         to: config.email.sendMail.from,
@@ -81,6 +81,8 @@ router.get('/_hc', function (req, res, next) {
         email: config.email,
         name: pkg.name
     });
+
+    next();
 });
 
 router.post('/hazard/create', function (req, res, next) {
@@ -132,8 +134,9 @@ router.post('/scrs/create', function (req, res, next) {
     });
 });
 
-router.post('/:report/submit', function (req, res, next) {
+router.post('/:report/update/:submit', function (req, res, next) {
     var report = req.params.report,
+        submit = req.params.submit,
         data = getReqBodyData(req),
         hazard = new Hazard(data),
         Instance;
@@ -141,12 +144,12 @@ router.post('/:report/submit', function (req, res, next) {
     switch (report) {
         case 'hazard':
             Instance = Hazard;
-            data.submitted = true;
+            data.submitted = (submit === 'submit') ? true : false;
             data.reportType = 'Hazard';
             break;
         case 'scrs':
             Instance = SCRS;
-            data.submitted = true;
+            data.submitted = (submit === 'submit') ? true : false;
             data.reportType = 'SCRS';
             break;
     }
@@ -167,12 +170,14 @@ router.post('/:report/submit', function (req, res, next) {
                     res.json({
                         data: data,
                         message: 'update success',
-                        submitted: true
+                        submitted: data.submitted
                     });
                 }
-                next();
+                return false;
             }
         );
+    } else {
+        next();
     }
 });
 
